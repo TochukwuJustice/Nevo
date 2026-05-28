@@ -1,5 +1,6 @@
 export * from './Avatar';
 export * from './Button';
+export * from './ConfirmDialog';
 export * from './Dropdown';
 export * from './Header';
 export * from './Footer';
