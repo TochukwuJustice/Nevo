@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { EmptyState } from '@/components/EmptyState';
-import { usePoolsStore, type Pool } from '@/src/store/poolsStore';
 import {
   usePoolsStore,
   type Pool,
@@ -11,15 +10,65 @@ import {
   type SortOption,
 } from '@/src/store/poolsStore';
 
-// We extract categories from MOCK_POOLS dynamically or define them statically
-const CATEGORIES = [
-  'Humanitarian',
-  'Technology',
-  'Environment',
-  'Animal Welfare',
-  'Education',
-  'Art & Culture',
-];
+const CATEGORY_CONFIG = {
+  Education: {
+    label: 'Education',
+    className: 'border-sky-200 bg-sky-50 text-sky-700',
+    activeClassName: 'border-sky-500 bg-sky-100 text-sky-800',
+  },
+  Healthcare: {
+    label: 'Healthcare',
+    className: 'border-rose-200 bg-rose-50 text-rose-700',
+    activeClassName: 'border-rose-500 bg-rose-100 text-rose-800',
+  },
+  Emergency: {
+    label: 'Emergency',
+    className: 'border-red-200 bg-red-50 text-red-700',
+    activeClassName: 'border-red-500 bg-red-100 text-red-800',
+  },
+  Humanitarian: {
+    label: 'Humanitarian',
+    className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    activeClassName: 'border-emerald-500 bg-emerald-100 text-emerald-800',
+  },
+  Technology: {
+    label: 'Technology',
+    className: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+    activeClassName: 'border-indigo-500 bg-indigo-100 text-indigo-800',
+  },
+  Environment: {
+    label: 'Environment',
+    className: 'border-lime-200 bg-lime-50 text-lime-700',
+    activeClassName: 'border-lime-500 bg-lime-100 text-lime-800',
+  },
+  'Animal Welfare': {
+    label: 'Animal Welfare',
+    className: 'border-amber-200 bg-amber-50 text-amber-700',
+    activeClassName: 'border-amber-500 bg-amber-100 text-amber-800',
+  },
+  Community: {
+    label: 'Community',
+    className: 'border-teal-200 bg-teal-50 text-teal-700',
+    activeClassName: 'border-teal-500 bg-teal-100 text-teal-800',
+  },
+  'Art & Culture': {
+    label: 'Art & Culture',
+    className: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
+    activeClassName: 'border-fuchsia-500 bg-fuchsia-100 text-fuchsia-800',
+  },
+} as const;
+
+type PoolCategory = keyof typeof CATEGORY_CONFIG;
+
+const CATEGORIES = Object.keys(CATEGORY_CONFIG) as PoolCategory[];
+
+const POOL_TAGS: Record<string, PoolCategory[]> = {
+  '1': ['Humanitarian', 'Emergency', 'Community'],
+  '2': ['Technology', 'Education'],
+  '3': ['Environment', 'Community'],
+  '4': ['Animal Welfare', 'Emergency'],
+  '5': ['Education', 'Technology'],
+};
 
 const POOL_STATUSES: PoolStatus[] = ['Active', 'Completed'];
 
@@ -31,7 +80,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 
 export default function BrowsePoolsPage() {
   const {
-    filteredPools,
+    pools,
     filters,
     setSearch,
     toggleCategory,
@@ -75,7 +124,7 @@ export default function BrowsePoolsPage() {
     return () => clearTimeout(handler);
   }, [searchInput, setSearch]);
 
-  const displayedPools = filteredPools();
+  const displayedPools = getDisplayedPools(pools, filters, sortBy);
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-10">
@@ -137,19 +186,20 @@ export default function BrowsePoolsPage() {
             <div>
               <h3 className="text-sm font-semibold mb-3">Categories</h3>
               <div className="flex flex-wrap gap-2 lg:flex-col">
-                {CATEGORIES.map((cat) => {
-                  const isActive = filters.categories.includes(cat);
+                {CATEGORIES.map((category) => {
+                  const isActive = filters.categories.includes(category);
                   return (
                     <button
-                      key={cat}
-                      onClick={() => toggleCategory(cat)}
+                      key={category}
+                      onClick={() => toggleCategory(category)}
+                      aria-pressed={isActive}
                       className={`rounded-full lg:rounded-lg border px-3 py-1.5 text-left text-sm transition-colors ${
                         isActive
-                          ? 'border-brand-600 bg-brand-50 text-brand-700 font-medium'
+                          ? CATEGORY_CONFIG[category].activeClassName
                           : 'border-[var(--color-border)] bg-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)]'
                       }`}
                     >
-                      {cat}
+                      {CATEGORY_CONFIG[category].label}
                     </button>
                   );
                 })}
@@ -198,7 +248,11 @@ export default function BrowsePoolsPage() {
               {selectedFilters.map((filter) => (
                 <span
                   key={filter.key}
-                  className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-xs font-medium text-[var(--color-text)]"
+                  className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                    isPoolCategory(filter.label)
+                      ? getCategoryClassName(filter.label, true)
+                      : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]'
+                  }`}
                 >
                   {filter.label}
                 </span>
@@ -227,26 +281,15 @@ export default function BrowsePoolsPage() {
                 variant: 'primary',
               }}
             />
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-raised)] py-24 text-center">
-              <div className="flex size-12 items-center justify-center rounded-full bg-[var(--color-border)] text-[var(--color-text-muted)] mb-4">
-                <SearchIcon />
-              </div>
-              <h3 className="text-base font-semibold">No results found</h3>
-              <p className="mt-1 text-sm text-[var(--color-text-muted)] max-w-sm">
-                We couldn&apos;t find any pools matching your search criteria.
-                Try adjusting your filters or search term.
-              </p>
-              <button
-                onClick={handleClearFilters}
-                className="mt-6 text-sm font-medium text-brand-600 hover:text-brand-700"
-              >
-                Clear filters
-              </button>
-            </div>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
               {displayedPools.map((pool) => (
-                <PoolCard key={pool.id} pool={pool} />
+                <PoolCard
+                  key={pool.id}
+                  pool={pool}
+                  activeCategories={filters.categories}
+                  onCategoryClick={toggleCategory}
+                />
               ))}
             </div>
           )}
@@ -256,25 +299,108 @@ export default function BrowsePoolsPage() {
   );
 }
 
-function PoolCard({ pool }: { pool: Pool }) {
+function getPoolTags(pool: Pool): PoolCategory[] {
+  const category = isPoolCategory(pool.category) ? pool.category : null;
+  return Array.from(new Set([category, ...(POOL_TAGS[pool.id] ?? [])])).filter(
+    (tag): tag is PoolCategory => Boolean(tag)
+  );
+}
+
+function isPoolCategory(value: string): value is PoolCategory {
+  return value in CATEGORY_CONFIG;
+}
+
+function getCategoryClassName(category: PoolCategory, active = false) {
+  return active
+    ? CATEGORY_CONFIG[category].activeClassName
+    : CATEGORY_CONFIG[category].className;
+}
+
+function getDisplayedPools(
+  pools: Pool[],
+  filters: {
+    search: string;
+    categories: string[];
+    statuses: PoolStatus[];
+  },
+  sortBy: SortOption
+) {
+  const searchLower = filters.search.toLowerCase();
+
+  return pools
+    .filter((pool) => {
+      const tags = getPoolTags(pool);
+      const tagText = tags.join(' ').toLowerCase();
+      const matchSearch =
+        !filters.search ||
+        pool.title.toLowerCase().includes(searchLower) ||
+        pool.description.toLowerCase().includes(searchLower) ||
+        pool.category.toLowerCase().includes(searchLower) ||
+        tagText.includes(searchLower) ||
+        (pool.creator && pool.creator.toLowerCase().includes(searchLower));
+      const matchCategory =
+        filters.categories.length === 0 ||
+        filters.categories.some(
+          (category) => isPoolCategory(category) && tags.includes(category)
+        );
+      const matchStatus =
+        filters.statuses.length === 0 || filters.statuses.includes(pool.status);
+      return matchSearch && matchCategory && matchStatus;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'most_raised') {
+        return b.raised - a.raised;
+      }
+      if (sortBy === 'goal_low') {
+        return a.target - b.target;
+      }
+      const dateA = new Date(a.createdAt ?? '1970-01-01').getTime();
+      const dateB = new Date(b.createdAt ?? '1970-01-01').getTime();
+      return dateB - dateA;
+    });
+}
+
+function PoolCard({
+  pool,
+  activeCategories,
+  onCategoryClick,
+}: {
+  pool: Pool;
+  activeCategories: string[];
+  onCategoryClick: (category: string) => void;
+}) {
   const pct = Math.min(100, Math.round((pool.raised / pool.target) * 100));
+  const tags = getPoolTags(pool);
 
   return (
-    <Link
-      href={`/pools/${pool.id}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] transition-all hover:-translate-y-1 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
-    >
-      <div
-        className="h-24 w-full"
+    <article className="flex flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] transition-all hover:-translate-y-1 hover:shadow-md">
+      <Link
+        href={`/pools/${pool.id}`}
+        className="block h-24 w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
         style={{ backgroundColor: pool.imageColor || '#e5e7eb' }}
+        aria-label={`View ${pool.title}`}
       />
       <div className="flex flex-1 flex-col p-5">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="inline-flex rounded-full bg-[var(--color-surface-raised)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-muted)]">
-            {pool.category}
-          </span>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {tags.map((tag) => {
+            const isActive = activeCategories.includes(tag);
+            return (
+              <button
+                type="button"
+                key={tag}
+                onClick={() => onCategoryClick(tag)}
+                aria-pressed={isActive}
+                className={`max-w-full rounded-full border px-2.5 py-1 text-xs font-semibold leading-tight transition-colors hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 ${getCategoryClassName(
+                  tag,
+                  isActive
+                )}`}
+              >
+                {CATEGORY_CONFIG[tag].label}
+              </button>
+            );
+          })}
           <span
-            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+            className={`ml-auto inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
               pool.status === 'Active'
                 ? 'bg-success-light text-success-dark'
                 : 'bg-[var(--color-border)] text-[var(--color-text-muted)]'
@@ -283,9 +409,14 @@ function PoolCard({ pool }: { pool: Pool }) {
             {pool.status}
           </span>
         </div>
-        <h3 className="font-bold text-lg leading-tight group-hover:text-brand-600 transition-colors line-clamp-1">
-          {pool.title}
-        </h3>
+        <Link
+          href={`/pools/${pool.id}`}
+          className="group/title focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+        >
+          <h3 className="font-bold text-lg leading-tight transition-colors line-clamp-1 group-hover/title:text-brand-600">
+            {pool.title}
+          </h3>
+        </Link>
         <p className="mt-2 text-sm text-[var(--color-text-muted)] line-clamp-2 flex-1">
           {pool.description}
         </p>
@@ -308,7 +439,7 @@ function PoolCard({ pool }: { pool: Pool }) {
           </div>
         </div>
       </div>
-    </Link>
+    </article>
   );
 }
 
