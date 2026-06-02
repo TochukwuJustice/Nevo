@@ -10,6 +10,7 @@ import '@/src/lib/i18n';
 export const NAV_LINKS = [
   { key: 'nav.home', href: '/' },
   { key: 'nav.pools', href: '/pools' },
+  { key: 'nav.donations', href: '/donations' },
   { key: 'nav.transactions', href: '/transactions' },
   { key: 'nav.dashboard', href: '/dashboard' },
   { key: 'nav.profile', href: '/profile' },
