@@ -1,13 +1,14 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import type { VerifyDto, AuthResult } from './auth.service';
+import type { AuthResult } from './auth.service';
+import { VerifyAuthDto } from './dto/verify-auth.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('verify')
-  verify(@Body() dto: VerifyDto): Promise<AuthResult> {
+  verify(@Body() dto: VerifyAuthDto): Promise<AuthResult> {
     return this.authService.verify(dto);
   }
 }

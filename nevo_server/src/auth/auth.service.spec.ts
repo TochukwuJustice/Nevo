@@ -1,25 +1,51 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
-import { AuthService, VerifyDto } from './auth.service';
+import { Keypair } from '@stellar/stellar-sdk';
+import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { User } from '../users/user.entity';
+import { VerifyAuthDto } from './dto/verify-auth.dto';
+
+jest.mock('@stellar/stellar-sdk', () => ({
+  Keypair: {
+    random: () => {
+      const publicKey = `mock-public-key-${Math.random().toString(36).slice(2)}`;
+      return {
+        publicKey: () => publicKey,
+        sign: (message: Buffer) =>
+          Buffer.from(`${publicKey}:${message.toString('utf8')}`),
+      };
+    },
+    fromPublicKey: (publicKey: string) => ({
+      verify: (message: Buffer, signature: Buffer) => {
+        const expected = Buffer.from(
+          `${publicKey}:${message.toString('utf8')}`,
+        );
+        return signature.equals(expected);
+      },
+    }),
+  },
+}));
 
 describe('AuthService', () => {
   const user: User = {
     id: 'uuid-1',
-    publicKey: 'GABC123',
+    publicKey: 'GBM3T7V2NNWJVSQ5Q7WPEMMO5G2E2UZY4D2Z24W73SHZJ2E4A5F2D3FZ',
     username: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
-  const dto: VerifyDto = {
-    publicKey: 'GABC123',
-    signature: 'sig',
-    message: 'msg',
+  const dto: VerifyAuthDto = {
+    publicKey: user.publicKey,
+    signature: '',
+    nonce: 'nonce-123',
   };
 
   let service: AuthService;
-  const findOrCreate = jest.fn().mockResolvedValue(user);
+  const findOrCreate = jest.fn().mockImplementation((publicKey: string) => ({
+    ...user,
+    publicKey,
+  }));
   const sign = jest.fn().mockReturnValue('jwt-token');
 
   beforeEach(async () => {
@@ -35,19 +61,83 @@ describe('AuthService', () => {
     sign.mockClear();
   });
 
-  it('returns accessToken and user on valid input', async () => {
-    const result = await service.verify(dto);
-
-    expect(findOrCreate).toHaveBeenCalledWith(dto.publicKey);
-    expect(sign).toHaveBeenCalledWith({
-      sub: user.id,
-      publicKey: user.publicKey,
-    });
-    expect(result).toEqual({ accessToken: 'jwt-token', user });
+  const buildDto = (
+    nonce: string,
+    publicKey: string,
+    signature: string,
+  ): VerifyAuthDto => ({
+    ...dto,
+    publicKey,
+    nonce,
+    signature,
   });
 
-  it('calls findOrCreate ensuring user provisioning on first auth', async () => {
-    await service.verify(dto);
-    expect(findOrCreate).toHaveBeenCalledTimes(1);
+  it('returns accessToken on valid nonce and signature', async () => {
+    const keypair = Keypair.random();
+    const publicKey = keypair.publicKey();
+    const nonce = service.createNonce(publicKey);
+    const signature = keypair.sign(Buffer.from(nonce, 'utf8')).toString('hex');
+    const result = await service.verify(buildDto(nonce, publicKey, signature));
+
+    expect(sign).toHaveBeenCalledWith({ sub: publicKey });
+    expect(result).toEqual({ accessToken: 'jwt-token' });
+  });
+
+  it('rejects an expired or missing nonce', async () => {
+    await expect(service.verify(dto)).rejects.toThrow(
+      'Nonce expired or not found',
+    );
+  });
+
+  it('rejects invalid signatures', async () => {
+    const keypair = Keypair.random();
+    const publicKey = keypair.publicKey();
+    const nonce = service.createNonce(publicKey);
+    await expect(
+      service.verify(buildDto(nonce, publicKey, '')),
+    ).rejects.toThrow('Invalid signature');
+  });
+
+  it('consumes a nonce after first use', async () => {
+    const keypair = Keypair.random();
+    const publicKey = keypair.publicKey();
+    const nonce = service.createNonce(publicKey);
+    const signature = keypair.sign(Buffer.from(nonce, 'utf8')).toString('hex');
+    await service.verify(buildDto(nonce, publicKey, signature));
+
+    await expect(
+      service.verify(buildDto(nonce, publicKey, signature)),
+    ).rejects.toThrow('Nonce expired or not found');
+  });
+
+  it('returns true for a valid signature', () => {
+    const keypair = Keypair.random();
+    const message = 'hello';
+    const signature = keypair.sign(Buffer.from(message)).toString('hex');
+
+    expect(
+      service.verifySignature(keypair.publicKey(), message, signature),
+    ).toBe(true);
+  });
+
+  it('returns false for a tampered message', () => {
+    const keypair = Keypair.random();
+    const message = 'hello';
+    const signature = keypair.sign(Buffer.from(message)).toString('hex');
+
+    expect(
+      service.verifySignature(keypair.publicKey(), 'world', signature),
+    ).toBe(false);
+  });
+
+  it('returns false for a wrong public key', () => {
+    const keypair = Keypair.random();
+    const otherKeypair = Keypair.random();
+    const message = 'hello';
+    const signature = keypair.sign(Buffer.from(message)).toString('hex');
+
+    expect(
+      service.verifySignature(otherKeypair.publicKey(), message, signature),
+    ).toBe(false);
   });
 });
