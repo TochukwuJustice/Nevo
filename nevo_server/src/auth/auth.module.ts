@@ -1,16 +1,15 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import type { StringValue } from 'ms';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from '../users/users.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { JwtStrategy } from './jwt.strategy';
-import { StellarAuthGuard } from './stellar-auth.guard';
+import { NonceService } from './nonce.service';
+import { Nonce } from './nonce.entity';
 
 @Module({
   imports: [
-    PassportModule,
+    TypeOrmModule.forFeature([Nonce]),
     JwtModule.register({
       secret: process.env.JWT_SECRET ?? 'dev-secret',
       signOptions: {
@@ -19,7 +18,7 @@ import { StellarAuthGuard } from './stellar-auth.guard';
     }),
     UsersModule,
   ],
-  providers: [AuthService, JwtStrategy, StellarAuthGuard],
+  providers: [AuthService, NonceService],
   controllers: [AuthController],
   exports: [StellarAuthGuard],
 })

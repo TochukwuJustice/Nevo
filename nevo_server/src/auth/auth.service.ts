@@ -7,7 +7,14 @@ import { JwtService } from '@nestjs/jwt';
 import { Keypair, StrKey } from '@stellar/stellar-sdk';
 import { UsersService } from '../users/users.service';
 import { randomBytes } from 'crypto';
-import { VerifyAuthDto } from './dto/verify-auth.dto';
+import { Keypair, StrKey } from '@stellar/stellar-sdk';
+import { NonceService } from './nonce.service';
+
+export interface VerifyDto {
+  publicKey: string;
+  signature: string;
+  message: string;
+}
 
 export interface AuthResult {
   accessToken: string;
@@ -32,6 +39,7 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly usersService: UsersService,
+    private readonly nonceService: NonceService,
   ) {
     setInterval(() => this.cleanupExpiredChallenges(), CHALLENGE_TTL_MS);
   }
@@ -53,32 +61,19 @@ export class AuthService {
     return { nonce, expiresAt };
   }
 
-  createNonce(publicKey: string): string {
-    const nonce = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    this.challenges.set(publicKey, {
-      nonce,
-      expiresAt: Date.now() + CHALLENGE_TTL_MS,
-    });
-    return nonce;
-  }
-
-  async verify(dto: VerifyAuthDto): Promise<AuthResult> {
-    const nonceEntry = this.challenges.get(dto.publicKey);
-
-    if (!nonceEntry || nonceEntry.expiresAt < Date.now()) {
-      this.challenges.delete(dto.publicKey);
-      throw new UnauthorizedException('Nonce expired or not found');
-    }
-
-    if (nonceEntry.nonce !== dto.nonce) {
-      throw new UnauthorizedException('Invalid nonce');
-    }
-
-    if (!this.verifySignature(dto.publicKey, dto.nonce, dto.signature)) {
+  async verify(dto: VerifyDto): Promise<AuthResult> {
+    if (!this.verifySignature(dto.publicKey, dto.signature, dto.message)) {
       throw new UnauthorizedException('Invalid signature');
     }
 
-    this.challenges.delete(dto.publicKey);
+    // Validate nonce from message
+    const nonce = await this.nonceService.findAndValidateNonce(dto.message);
+    if (!nonce) {
+      throw new UnauthorizedException('Invalid or expired nonce');
+    }
+
+    // Mark nonce as used
+    await this.nonceService.markNonceAsUsed(nonce.id);
 
     const accessToken = this.jwtService.sign({
       sub: dto.publicKey,
@@ -87,20 +82,15 @@ export class AuthService {
     return { accessToken };
   }
 
-  verifySignature(
+  private verifySignature(
     publicKey: string,
-    message: string,
     signature: string,
+    message: string,
   ): boolean {
-    if (!publicKey || !message || !signature) {
-      return false;
-    }
-
     try {
-      return Keypair.fromPublicKey(publicKey).verify(
-        Buffer.from(message),
-        Buffer.from(signature, 'hex'),
-      );
+      // Verify the Stellar Ed25519 signature
+      const keypair = Keypair.fromPublicKey(publicKey);
+      return keypair.verify(Buffer.from(message), Buffer.from(signature, 'hex'));
     } catch {
       return false;
     }
