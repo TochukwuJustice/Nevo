@@ -85,7 +85,7 @@ export class PoolsService {
 
       if (poolOnChain) {
         raisedOnChain = poolOnChain.collected.toString();
-        closedOnChain = poolOnChain.isClosed;
+        closedOnChain = poolOnChain.closed;
       } else if (totalRaisedOnChain) {
         raisedOnChain = totalRaisedOnChain.toString();
       }
