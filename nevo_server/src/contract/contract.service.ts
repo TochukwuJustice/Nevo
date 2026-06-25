@@ -244,7 +244,8 @@ export class ContractService {
       const retVal = result.result?.retval;
       if (!retVal) return 0n;
 
-      return BigInt(scValToNative(retVal));
+      const native = scValToNative(retVal);
+      return typeof native === 'bigint' ? native : BigInt(String(native));
     } catch {
       return 0n;
     }
