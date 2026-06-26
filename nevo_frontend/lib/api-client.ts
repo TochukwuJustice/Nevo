@@ -473,6 +473,50 @@ apiClient.addRequestInterceptor((config) => {
   return config;
 });
 
+export interface ApiDonation {
+  id: string;
+  poolId: string;
+  poolName: string;
+  amount: string;
+  asset: 'XLM' | 'USDC';
+  txHash: string;
+  timestamp: string;
+  status: 'pending' | 'confirmed' | 'failed';
+}
+
+export interface ApiProfile {
+  publicKey: string;
+  displayName: string | null;
+  createdAt: string;
+}
+
+export function fetchMyDonations(): Promise<ApiDonation[]> {
+  return apiClient.get<ApiDonation[]>('/users/me/donations');
+}
+
+export function fetchMyProfile(): Promise<ApiProfile> {
+  return apiClient.get<ApiProfile>('/users/me');
+}
+
+export interface CreatePoolPayload {
+  title: string;
+  description: string;
+  category: string;
+  goalAmount: string;
+  duration: number;
+  imageUrl: string;
+  tags: string;
+}
+
+export interface CreatePoolResponse {
+  id: string;
+  unsignedXdr: string;
+}
+
+export function createPool(
+  payload: CreatePoolPayload
+): Promise<CreatePoolResponse> {
+  return apiClient.post<CreatePoolResponse>('/pools', payload);
 export async function submitSignedXdr(
   xdr: string
 ): Promise<{ txHash: string }> {
