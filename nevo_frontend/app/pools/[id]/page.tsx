@@ -333,43 +333,26 @@ export default function PoolDetailPage() {
             </h2>
 
             {contributors.length === 0 ? (
-              <>
-                <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-raised)] px-4 py-8 text-center">
-                  <p className="font-semibold">No contributions yet</p>
-                  <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-                    Be the first to support this pool.
-                  </p>
-                  {isActive && (
-                    <button
-                      type="button"
-                      onClick={() => setDonateOpen(true)}
-                      className="mt-4 rounded-full bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
-                    >
-                      Donate Now
-                    </button>
-                  )}
-                </div>
-                <EmptyState
-                  variant="compact"
-                  icon="contributors"
-                  iconTone="muted"
-                  title="No contributions yet"
-                  description="Be the first to support this pool."
-                  action={
-                    isActive
-                      ? {
-                          label: 'Donate Now',
-                          onClick: () => setDonateOpen(true),
-                        }
-                      : undefined
-                  }
-                  steps={[
-                    { text: 'Connect your Stellar wallet' },
-                    { text: 'Choose an amount to donate' },
-                    { text: 'Confirm the transaction in Freighter' },
-                  ]}
-                />
-              </>
+              <EmptyState
+                variant="compact"
+                icon="contributors"
+                iconTone="muted"
+                title="No contributions yet"
+                description="Be the first to support this pool."
+                action={
+                  isActive
+                    ? {
+                        label: 'Donate Now',
+                        onClick: () => setDonateOpen(true),
+                      }
+                    : undefined
+                }
+                steps={[
+                  { text: 'Connect your Stellar wallet' },
+                  { text: 'Choose an amount to donate' },
+                  { text: 'Confirm the transaction in Freighter' },
+                ]}
+              />
             ) : (
               <ul className="flex flex-col gap-2" role="list">
                 {contributors.map((c, i) => (
@@ -483,18 +466,13 @@ export default function PoolDetailPage() {
             </h2>
 
             {timeline.length === 0 ? (
-              <>
-                <p className="text-sm text-[var(--color-text-muted)]">
-                  Pool milestones and donations will appear here as they happen.
-                </p>
-                <EmptyState
-                  variant="compact"
-                  icon="history"
-                  iconTone="muted"
-                  title="No activity yet"
-                  description="Pool milestones and donations will appear here as they happen."
-                />
-              </>
+              <EmptyState
+                variant="compact"
+                icon="history"
+                iconTone="muted"
+                title="No activity yet"
+                description="Pool milestones and donations will appear here as they happen."
+              />
             ) : (
               <ol
                 className="relative border-l border-[var(--color-border)] pl-6"
