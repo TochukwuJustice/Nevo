@@ -479,29 +479,35 @@ export async function submitSignedXdr(
   return apiClient.post<{ txHash: string }>('/transactions/submit', { xdr });
 }
 
-export interface Donation {
-  address: string;
-  amount: number;
-  donatedAt: string;
+export interface ApiDonation {
+  id: string;
+  type: 'donation' | 'pool_creation' | 'withdrawal';
+  amount: string;
+  asset: string;
+  recipient: string;
+  date: string;
+  status: 'completed' | 'pending' | 'failed';
+  txHash: string;
 }
 
-export async function fetchPoolDonations(poolId: string): Promise<Donation[]> {
-  return apiClient.get<Donation[]>(`/pools/${poolId}/donations`);
+export async function fetchMyDonations(): Promise<ApiDonation[]> {
+  return apiClient.get<ApiDonation[]>('/donations/me');
 }
 
-export interface WithdrawResponse {
-  xdr: string;
+export interface ApiPool {
+  id: string;
+  contractPoolId: string;
+  title: string;
+  description: string;
+  goal: string;
+  raised: string;
+  status: string;
 }
 
-// Testnet XLM native contract address (hardcoded as per issue #717)
-const TESTNET_XLM_CONTRACT =
-  'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC';
+export async function fetchCreatorPools(publicKey: string): Promise<ApiPool[]> {
+  return apiClient.get<ApiPool[]>(`/pools?creator=${encodeURIComponent(publicKey)}`);
+}
 
-export async function withdrawPool(
-  poolId: string,
-  tokenAddress: string = TESTNET_XLM_CONTRACT
-): Promise<WithdrawResponse> {
-  return apiClient.post<WithdrawResponse>(`/pools/${poolId}/withdraw`, {
-    tokenAddress,
-  });
+export async function donate(poolId: number, amount: string, tokenAddress: string): Promise<void> {
+  return apiClient.post('/donations', { poolId, amount, tokenAddress });
 }
