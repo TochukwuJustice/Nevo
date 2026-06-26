@@ -7,6 +7,7 @@ import { DonateModal } from '@/components/DonateModal';
 import { EmptyState } from '@/components/EmptyState';
 import { WalletAddress } from '@/components/WalletAddress';
 import { CopyButton } from '@/components/CopyButton';
+import { toast } from '@/components/Toast';
 import { usePoolsStore } from '@/src/store/poolsStore';
 import type { Pool } from '@/src/store/poolsStore';
 import { useWalletStore } from '@/src/store/walletStore';
@@ -14,42 +15,11 @@ import { closePool, submitSignedXdr } from '@/lib/api-client';
 import { signTransaction } from '@stellar/freighter-api';
 import { toast } from '@/components/Toast';
 
-// Removed MOCK_POOLS
+// Testnet XLM native contract address (same as api-client)
+const TESTNET_XLM_CONTRACT =
+  'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC';
 
-interface Contributor {
-  address: string;
-  amount: number;
-  donatedAt: string;
-}
-
-const MOCK_CONTRIBUTORS: Record<string, Contributor[]> = {
-  '1': [
-    {
-      address: 'GXYZ1234567890ABCDE1234567890ABCDE1234567890ABCDE1234567890AB',
-      amount: 500,
-      donatedAt: '2025-03-05',
-    },
-    {
-      address: 'GABC9876543210ZYXWV9876543210ZYXWV9876543210ZYXWV9876543210ZY',
-      amount: 1200,
-      donatedAt: '2025-03-12',
-    },
-  ],
-  '2': [
-    {
-      address: 'GXYZ1234567890ABCDE1234567890ABCDE1234567890ABCDE1234567890AB',
-      amount: 750,
-      donatedAt: '2025-01-20',
-    },
-  ],
-  '3': [
-    {
-      address: 'GDEF5555555555GHIJK5555555555GHIJK5555555555GHIJK5555555555GH',
-      amount: 1000,
-      donatedAt: '2024-11-15',
-    },
-  ],
-};
+type WithdrawStep = 'idle' | 'creating' | 'signing' | 'submitting';
 
 interface TimelineEvent {
   id: string;
@@ -560,6 +530,20 @@ export default function PoolDetailPage() {
             >
               {isCompleted ? 'Pool Closed' : 'Donate Now'}
             </button>
+
+            {isOwner && isCompleted && (
+              <button
+                type="button"
+                onClick={handleWithdraw}
+                disabled={withdrawStep !== 'idle'}
+                className="mt-3 w-full rounded-full border border-brand-600 px-6 py-3 text-sm font-semibold text-brand-600 hover:bg-brand-50 transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+              >
+                {withdrawStep !== 'idle' && (
+                  <span className="mr-2 inline-block size-4 animate-spin rounded-full border-2 border-brand-600 border-t-transparent align-middle" />
+                )}
+                {withdrawLabel()}
+              </button>
+            )}
 
             <div className="mt-4">
               <CopyButton
