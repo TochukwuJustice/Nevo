@@ -18,3 +18,11 @@ export function getStoredAccessToken(): string | null {
     return null;
   }
 }
+
+export function clearJwt(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.removeItem('nevo-wallet');
+}
