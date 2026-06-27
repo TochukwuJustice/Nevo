@@ -16,7 +16,10 @@ import {
 import { Request } from 'express';
 import { PoolsService } from './pools.service';
 import { GetPoolsDto } from './dto/get-pools.dto';
-import { DonationsService } from '../donations/donations.service';
+import {
+  DonationSortBy,
+  DonationsService,
+} from '../donations/donations.service';
 import { ContractService } from '../contract/contract.service';
 import { StellarAuthGuard } from '../auth/stellar-auth.guard';
 
@@ -92,16 +95,9 @@ export class PoolsController {
   }
 
   @Get(':id/donations')
-  getDonations(
-    @Param('id', ParseIntPipe) id: number,
-    @Query('page') page = '1',
-    @Query('limit') limit = '20',
-  ) {
-    return this.donationsService.findByPool(
-      id,
-      Math.max(1, parseInt(page, 10) || 1),
-      Math.min(100, Math.max(1, parseInt(limit, 10) || 20)),
-    );
+  getDonations(@Param('id') id: string, @Query('sortBy') sortBy?: string) {
+    const sort: DonationSortBy = sortBy === 'largest' ? 'largest' : 'newest';
+    return this.donationsService.findByPool(id, sort);
   }
 
   @UseGuards(StellarAuthGuard)
