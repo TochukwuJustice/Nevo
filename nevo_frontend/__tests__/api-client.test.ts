@@ -115,6 +115,61 @@ describe('ApiClient rate limiting', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
+  it('does not include Authorization header when no JWT is stored', async () => {
+    const client = new ApiClient('https://api.test', 1000, {
+      maxRequests: 10,
+      windowMs: 60_000,
+    });
+    (global.fetch as jest.Mock).mockResolvedValue(jsonResponse({ ok: true }));
+
+    await client.get('/public', {
+      requireAuth: undefined,
+      cacheResponse: false,
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [, fetchInit] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(fetchInit.headers.get('Authorization')).toBeNull();
+  });
+
+  it('attaches Authorization header when JWT is stored', async () => {
+    window.localStorage.setItem(
+      'nevo-wallet',
+      JSON.stringify({ state: { accessToken: 'jwt-token-123' } })
+    );
+
+    const client = new ApiClient('https://api.test', 1000, {
+      maxRequests: 10,
+      windowMs: 60_000,
+    });
+    (global.fetch as jest.Mock).mockResolvedValue(jsonResponse({ ok: true }));
+
+    await client.post('/protected', { foo: 'bar' }, { cacheResponse: false });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [, fetchInit] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(fetchInit.headers.get('Authorization')).toBe('Bearer jwt-token-123');
+  });
+
+  it('omits Authorization header when requireAuth is false even if JWT is stored', async () => {
+    window.localStorage.setItem(
+      'nevo-wallet',
+      JSON.stringify({ state: { accessToken: 'jwt-token-123' } })
+    );
+
+    const client = new ApiClient('https://api.test', 1000, {
+      maxRequests: 10,
+      windowMs: 60_000,
+    });
+    (global.fetch as jest.Mock).mockResolvedValue(jsonResponse({ ok: true }));
+
+    await client.get('/public', { requireAuth: false, cacheResponse: false });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [, fetchInit] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(fetchInit.headers.get('Authorization')).toBeNull();
+  });
+
   it('converts server 429 responses into retry-aware rate limit errors', async () => {
     const client = new ApiClient('https://api.test', 1000, {
       maxRequests: 10,
