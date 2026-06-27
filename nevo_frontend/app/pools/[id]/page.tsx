@@ -13,7 +13,6 @@ import type { Pool } from '@/src/store/poolsStore';
 import { useWalletStore } from '@/src/store/walletStore';
 import { closePool, submitSignedXdr } from '@/lib/api-client';
 import { signTransaction } from '@stellar/freighter-api';
-import { toast } from '@/components/Toast';
 
 // Testnet XLM native contract address (same as api-client)
 const TESTNET_XLM_CONTRACT =
@@ -415,6 +414,8 @@ export default function PoolDetailPage() {
                 </div>
               </div>
             )}
+          </section>
+
           <section aria-labelledby="comments-heading">
             <h2 id="comments-heading" className="mb-4 text-lg font-semibold">
               Discussion
